@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# build output
+dist/
+.next/
+out/
+
+# prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+
+# logs
+npm-debug.log*
+*.log
+
+# editor / os
+.DS_Store
+Thumbs.db
+
+# typescript
+*.tsbuildinfo

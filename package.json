@@ -1,0 +1,32 @@
+{
+  "name": "session-replay",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "predev": "npm run build -w @session-replay/shared",
+    "dev": "concurrently -n web,api -c blue,green \"npm run dev -w @session-replay/web\" \"npm run dev -w @session-replay/api\"",
+    "build": "npm run build -w @session-replay/shared && npm run build -w @session-replay/api && npm run build -w @session-replay/web",
+    "pretest": "npm run build -w @session-replay/shared",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "seed": "npm run seed -w @session-replay/api"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

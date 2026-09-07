@@ -1,0 +1,106 @@
+// Prisma schema for session-replay API.
+//
+// Mirrors the wire types in packages/shared/src/types.ts (Session, TapEvent,
+// ClearBarEvent). Two representational differences from the wire shapes,
+// both deliberate:
+//   - timestamps are stored as `DateTime` here vs. ISO 8601 `string` on the
+//     wire — SQLite/Prisma sorts and indexes DateTime properly; the API
+//     layer converts at the boundary.
+//   - TapEvent | ClearBarEvent is stored as one polymorphic `SessionEvent`
+//     table with a `type` discriminator column, rather than two tables. This
+//     keeps a single (sessionId, deviceSeq) / (deviceId, clientTimestamp)
+//     ordering query simple (see the ordering-rule comment in
+//     packages/shared/src/types.ts) instead of requiring a union/merge
+//     across tables. `tileId`/`phraseText` are nullable since they only
+//     apply to `tile_tap` rows.
+//
+// Note: `type` is a plain String, not a Prisma enum — SQLite's connector
+// does not support native enums.
+//
+// Cursor / serverSeq:
+// SyncPullResponse pages by server-side insertion order, not client clocks
+// (see GET /api/sync/pull). The obvious approach — a plain
+// `Int @id @default(autoincrement())` per table — only captures *creation*
+// order, but the pull contract is "created OR UPDATED after cursor": a
+// Session can be mutated later (POST .../close sets endedAt), and that
+// update needs to become visible to a client that already pulled past the
+// session's original row. SQLite also only allows one native AUTOINCREMENT
+// column per table (it's tied to the table's rowid), so two independently
+// autoincrementing columns aren't an option even if we wanted one for
+// "created" and one for "updated".
+//
+// Instead, `serverSeq` on both tables is a plain Int stamped from one
+// shared counter (the `SyncSeq` table below): minted once when a row is
+// created, and re-minted whenever it's meaningfully updated (currently just
+// session close). Because both tables draw from the same counter, a single
+// `serverSeq` cursor value is directly comparable across both — pull can
+// filter `WHERE serverSeq > since` on each table and take the max observed
+// as the new cursor, with no risk of a session's "created" and "updated"
+// states racing against event insertion order.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SyncSeq {
+  seq Int @id @default(autoincrement())
+}
+
+model Session {
+  // Client-generated UUID, minted when a new session starts.
+  id        String    @id
+  deviceId  String
+  startedAt DateTime
+  // null while still open.
+  endedAt   DateTime?
+
+  // See the SyncSeq comment above — minted on create, re-minted on update.
+  serverSeq Int @unique
+
+  events SessionEvent[]
+
+  @@index([deviceId])
+}
+
+model SessionEvent {
+  // Client-generated UUID v4 — this is the idempotency key for sync
+  // (SyncPushResponse reports re-pushed ids back as duplicates, not errors).
+  id String @id
+
+  // 'tile_tap' | 'clear_bar'
+  type String
+
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id])
+
+  deviceId String
+  // Monotonically increasing per-device counter; unique per device and used
+  // as the within-device ordering key / cross-device tiebreak input.
+  deviceSeq Int
+
+  // Client clock; may drift across devices. Cross-device ordering falls back
+  // to this, then to deviceId — see the ordering-rule comment in
+  // packages/shared/src/types.ts for why this is "good enough" and not
+  // vector-clock-correct.
+  clientTimestamp DateTime
+
+  // tile_tap-only fields; null for clear_bar rows.
+  tileId     String?
+  phraseText String?
+
+  // Server-side insertion marker, not part of the wire type.
+  receivedAt DateTime @default(now())
+
+  // See the SyncSeq comment above. Events are immutable once inserted, so
+  // this is always creation order for events specifically.
+  serverSeq Int @unique
+
+  @@unique([deviceId, deviceSeq])
+  @@index([sessionId, deviceSeq])
+  @@index([deviceId, clientTimestamp])
+}
