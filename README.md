@@ -7,7 +7,7 @@ An offline-first AAC (augmentative and alternative communication) tap surface, w
 **Prerequisites:** Node.js ≥ 18.18 (see `engines` in the root `package.json`), npm. No database server to install — the backend is SQLite via Prisma, and the client store is IndexedDB in the browser. The web app needs no environment variables (`NEXT_PUBLIC_API_URL` defaults to `http://localhost:4000` if unset — see `apps/web/lib/sync-engine.ts`); the API needs `DATABASE_URL`, which is `.gitignore`d like any `.env`, so copy the example first.
 
 ```bash
-git clone <repo>
+git clone https://github.com/HamzaShaikh17/avaz-practical.git
 cd session-replay
 npm install                       # installs and links all three workspaces
 cp apps/api/.env.example apps/api/.env   # DATABASE_URL + PORT — required, see above
