@@ -1,4 +1,4 @@
-# session-replay
+# avaz-practical
 
 An offline-first AAC (augmentative and alternative communication) tap surface, with a local-first event log that syncs to a backend and a caregiver mode to review and replay sessions.
 
@@ -8,7 +8,7 @@ An offline-first AAC (augmentative and alternative communication) tap surface, w
 
 ```bash
 git clone https://github.com/HamzaShaikh17/avaz-practical.git
-cd session-replay
+cd avaz-practical
 npm install                       # installs and links all three workspaces
 cp apps/api/.env.example apps/api/.env   # DATABASE_URL + PORT — required, see above
 npm run seed                      # apps/api/prisma: drops + recreates the SQLite db, empty
